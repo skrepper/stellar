@@ -25,13 +25,17 @@ export default class App extends React.Component {
 			escrowsecretkey: escrow.secret(),
 			paymentInfoKey: "here will be hash",
 			// destination public key (secret="SBKKJ76V4HPMVJWME72FRWI5D74RRGDY6CDRANJTZVL44ZOTGAROHFTG")
-			destPublic: "GDKBCHIT7OSLFGQH24XO6LYQJSSOHBEHQDWCNS5QZHHCHRMVFJ275MLF" 
+			destPublic: "GDKBCHIT7OSLFGQH24XO6LYQJSSOHBEHQDWCNS5QZHHCHRMVFJ275MLF" ,
+			xdrUnlockOrigin: "here will be XDR",
+			xdrUnlockDestination: "",
 		};
 		this.CreateAccount = this.CreateAccount.bind(this);
 		this.Payment = this.Payment.bind(this);
 		this.handleInputChange = this.handleInputChange.bind(this);
 		this.EnablingMultiSig = this.EnablingMultiSig.bind(this);
-		
+		this.UnlockDate = this.UnlockDate.bind(this);
+		this.handleTextAreaChange = this.handleTextAreaChange.bind(this);
+		this.SubmitTrn_N_3 = this.SubmitTrn_N_3.bind(this);
 	}
 	Payment() {
 		server.loadAccount(src.publicKey())
@@ -121,15 +125,76 @@ export default class App extends React.Component {
 	  });}
 	
 	handleInputChange(event) {
-		const t_escrowsecretkey = "";
+		let t_escrowsecretkey = "";
 		if (typeof event.target.value === 'string') {
-			const t_escrowsecretkey = event.target.value;
-			if (t_escrowsecretkey.length==56) {
+			t_escrowsecretkey = event.target.value;
+			if (t_escrowsecretkey.length===56) {
 				this.setState({escrowsecretkey: t_escrowsecretkey});
 				escrow = StellarSdk.Keypair.fromSecret(t_escrowsecretkey);
 				this.setState({escrowpublickey: escrow.publicKey()});
 			};
 		}
+	}
+	
+	UnlockDate() {
+		const unlockDate = new Date(new Date().getTime() + UNLOCK_MINUTES * 60000);
+		console.log(`Unlock date in ${UNLOCK_MINUTES} minutes:`, unlockDate);
+		const unixUnlock = Math.round(unlockDate.getTime() / 1000);
+		console.log("Unix unlock date", unixUnlock);
+		server.loadAccount(escrow.publicKey())
+			.then( (escrowAccount) => {
+				  const sequenceNumber = escrowAccount.sequenceNumber();
+				  console.log("sequenceNumber", sequenceNumber);
+				  
+				  const transaction3 = new StellarSdk.TransactionBuilder(
+					new StellarSdk.Account(escrow.publicKey(), sequenceNumber),
+					{
+					  timebounds: {
+						minTime: unixUnlock,
+						maxTime: 0
+					  },
+					  fee:100
+					}
+				  )
+					.addOperation(
+					  StellarSdk.Operation.setOptions({
+						masterWeight: 0,
+						lowThreshold: 1,
+						medThreshold: 1,
+						highThreshold: 1
+					  })
+					)
+					.setTimeout(UNLOCK_MINUTES * 60) //StellarSdk.TimeoutInfinite
+					.build();
+				  transaction3.sign(StellarSdk.Keypair.fromSecret(escrow.secret()));				
+				  console.log(transaction3.toEnvelope().toXDR("base64"));
+				  this.setState({ xdrUnlockOrigin: transaction3.toEnvelope().toXDR("base64") });
+	  })
+	  .then(function(result) {
+		console.log('Success! Results:', result);
+	  })
+	  .catch(function(error) {
+		console.error('Something went wrong!', error);
+	  });
+	}
+	
+	handleTextAreaChange(event) {
+		this.setState({xdrUnlockDestination: event.target.value});
+	}
+	
+	SubmitTrn_N_3() {
+		const transaction = new StellarSdk.Transaction(this.state.xdrUnlockDestination);
+		console.log(transaction);
+		server.loadAccount(escrow.publicKey())
+			.then(function (escrowAccount) {
+		  return server.submitTransaction(transaction);
+	  })
+	  .then(function(result) {
+		console.log('Success! Results:', result);
+	  })
+	  .catch(function(error) {
+		console.error('Something went wrong!', error);
+	  });
 	}
 	
   render() {
@@ -149,7 +214,7 @@ export default class App extends React.Component {
 		Escrow secret key: {this.state.escrowsecretkey}
 	  </div>
 	  <div>
-		<input type="text" name="name" 
+		<input type="text" name="name1" 
 			style={{width: "600px"}} 
 			placeholder = "Enter here new escrow secret key"
 			onChange={this.handleInputChange} />
@@ -170,7 +235,32 @@ export default class App extends React.Component {
 	  <div>
 		<button onClick={this.EnablingMultiSig}>Enabling Multi-sig (transaction N 2)</button>
 	  </div>
-	  
+	  <div>
+		<button onClick={this.UnlockDate}>Unlock by origin (transaction N 3)</button>
+	  </div>
+	  <div>
+		XDR of Unlock by origin: 
+		<div>
+		{this.state.xdrUnlockOrigin}
+		</div>
+		<div>
+			<p>Copy to clipboard and send client to sign on <a href="https://www.stellar.org/laboratory/#txsigner?network=test">https://www.stellar.org/laboratory/#txsigner?network=test</a></p>
+			<p>After sign client must send us new XDR</p>
+		</div>
+		<div>
+			New signed by client XDR
+			<div>
+			<textarea name="name2" 
+				style={{width: "600px"}} 
+				placeholder = "Enter here new XDR"
+				onChange={this.handleTextAreaChange}
+			/>
+			<div>
+				<button onClick={this.SubmitTrn_N_3}>Submit (transaction N 3)</button>
+			</div>
+			</div>
+		</div>
+	  </div>
     </div>
 	)};
 }
