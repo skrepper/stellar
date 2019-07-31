@@ -2,16 +2,20 @@ import React from 'react';
 import StellarSdk  from 'stellar-sdk';
 
 const server = new StellarSdk.Server("https://horizon-testnet.stellar.org");
+//const server = new StellarSdk.Server("https://horizon.stellar.org");
 StellarSdk.Network.useTestNetwork();
+//StellarSdk.Network.usePublicNetwork();
 const UNLOCK_MINUTES = 2;
 let unlockDate = null;
 const fee = StellarSdk.BASE_FEE;
 let sequenceNumber=null;
 
-const src = StellarSdk.Keypair.fromSecret("SABBFFY2Q36ERGUG4SIXUPYFMXXZAFP6B7MMGMSBCQBJU4V2NZQ6EXU7");
+//pub GB5IQ7U64JJIMZ2KGHFSHOHI2SX3NO3WZXAX2CFBUDSGVNLXUV576FAS
+const src = StellarSdk.Keypair.fromSecret("SAZL6LCNLID65KOOQLQJ4737RZRPRXUUXUGJ44BI67IH2YSEKOF4TMVZ");
 let escrow = StellarSdk.Keypair.fromSecret("SDIKUDHIRTCP4E7GHW73VR2NV4H3ZO3HANTGAAKB34NMNP5GUKUOYBFR");
-// destination public key (secret="SBKKJ76V4HPMVJWME72FRWI5D74RRGDY6CDRANJTZVL44ZOTGAROHFTG")
-let dest = StellarSdk.Keypair.fromPublicKey("GDKBCHIT7OSLFGQH24XO6LYQJSSOHBEHQDWCNS5QZHHCHRMVFJ275MLF");
+
+//Secret Key	SAORB66C6CQGKPNRFC3GX5TPCFRDM7CHT5ICBHUXXINTWMNLPOGSJFIQ
+let dest = StellarSdk.Keypair.fromPublicKey("GD3ZCHDBX5UY24436A4WYIPPCCQSTJ5KIM4BKFNRFEKXMOQS5LYBDB4B");
 
 
 export default class App extends React.Component {
@@ -21,12 +25,12 @@ export default class App extends React.Component {
 			escrowpublickey: escrow.publicKey(),
 			escrowsecretkey: escrow.secret(),
 			paymentInfoKey: "here will be hash",
-			destPublicKey: "GDKBCHIT7OSLFGQH24XO6LYQJSSOHBEHQDWCNS5QZHHCHRMVFJ275MLF" ,
+			destPublicKey: "GD3ZCHDBX5UY24436A4WYIPPCCQSTJ5KIM4BKFNRFEKXMOQS5LYBDB4B" ,
 			xdrUnlockOrigin: "here will be XDR",
 			xdrUnlockDestination: "",
 			xdrRecoveryOrigin: "here will be XDR",
 			xdrRecoveryDestination: "",
-			paymentAccount: "" + 100
+			paymentAmount: "" + 100
 		};
 		this.CreateAccount = this.CreateAccount.bind(this);
 		this.Payment = this.Payment.bind(this);
@@ -38,7 +42,7 @@ export default class App extends React.Component {
 		this.SubmitTrn_N_3 = this.SubmitTrn_N_3.bind(this);
 		this.SubmitTrn_N_4 = this.SubmitTrn_N_4.bind(this);
 		this.RecoveryTrn = this.RecoveryTrn.bind(this);
-		this.handleInputPaymentAccount = this.handleInputPaymentAccount.bind(this);
+		this.handleInputPaymentAmount = this.handleInputPaymentAmount.bind(this);
 	}
 	Payment() {
 		server.loadAccount(src.publicKey())
@@ -48,7 +52,7 @@ export default class App extends React.Component {
 					StellarSdk.Operation.payment({
 						destination: escrow.publicKey(),
 						asset: StellarSdk.Asset.native(),
-						amount: this.state.paymentAccount // in XLM
+						amount: this.state.paymentAmount // in XLM
 					})
 				)
 				.setTimeout(StellarSdk.TimeoutInfinite)
@@ -140,6 +144,7 @@ export default class App extends React.Component {
 	}
 	
 	UnlockDate() {
+		console.log("Unix now date", new Date().getTime());
 		unlockDate = new Date(new Date().getTime() + UNLOCK_MINUTES * 60000);
 		console.log(`Unlock date in ${UNLOCK_MINUTES} minutes:`, unlockDate);
 		const unixUnlock = Math.round(unlockDate.getTime() / 1000);
@@ -167,7 +172,8 @@ export default class App extends React.Component {
 						highThreshold: 1
 					  })
 					)
-					.setTimeout(UNLOCK_MINUTES * 60) //StellarSdk.TimeoutInfinite
+					//.setTimeout(UNLOCK_MINUTES * 60) 
+					.setTimeout(StellarSdk.TimeoutInfinite) 
 					.build();
 				  transaction3.sign(StellarSdk.Keypair.fromSecret(escrow.secret()));				
 				  console.log(transaction3.toEnvelope().toXDR("base64"));
@@ -249,7 +255,8 @@ export default class App extends React.Component {
 						highThreshold: 1
 					  })
 					)
-					.setTimeout(UNLOCK_MINUTES * 60) //StellarSdk.TimeoutInfinite
+					//.setTimeout(UNLOCK_MINUTES * 60) 
+					.setTimeout(StellarSdk.TimeoutInfinite)
 					.build();
 				  transaction4.sign(StellarSdk.Keypair.fromSecret(escrow.secret()));				
 				  console.log(transaction4.toEnvelope().toXDR("base64"));
@@ -263,12 +270,12 @@ export default class App extends React.Component {
 	  });
     }
 	
-	handleInputPaymentAccount(event) {
-		let t_PaymentAccount = 0;
-		t_PaymentAccount = event.target.value * 1;
-		if (typeof t_PaymentAccount === 'number') {
-			if (t_PaymentAccount > 0) {
-				this.setState({paymentAccount: "" + t_PaymentAccount});
+	handleInputPaymentAmount(event) {
+		let t_PaymentAmount = 0;
+		t_PaymentAmount = event.target.value * 1;
+		if (typeof t_PaymentAmount === 'number') {
+			if (t_PaymentAmount > 0) {
+				this.setState({paymentAmount: "" + t_PaymentAmount});
 			}
 		}
 	}
@@ -299,7 +306,7 @@ export default class App extends React.Component {
 		<input type="text" name="name31" 
 			style={{width: "200px"}} 
 			placeholder = "Enter here new payment account"
-			onChange={this.handleInputPaymentAccount} /> (now {this.state.paymentAccount})
+			onChange={this.handleInputPaymentAmount} /> (now {this.state.paymentAmount})
 	  </div>
 	  <div>
 		<button onClick={this.Payment}>Payment (transaction N 5)</button>
